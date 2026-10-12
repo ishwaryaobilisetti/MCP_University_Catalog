@@ -1,0 +1,15 @@
+import sqlite3
+
+conn = sqlite3.connect('catalog.db')
+c = conn.cursor()
+c.execute('SELECT name FROM sqlite_master WHERE type="table"')
+print('Tables:', c.fetchall())
+c.execute('SELECT * FROM departments')
+print('Departments:', c.fetchall())
+c.execute('SELECT * FROM instructors')
+print('Instructors:', c.fetchall())
+c.execute('SELECT course_code, title FROM courses')
+print('Courses:', c.fetchall())
+c.execute('SELECT * FROM prerequisites')
+print('Prerequisites:', c.fetchall())
+conn.close()
