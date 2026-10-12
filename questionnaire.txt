@@ -1,0 +1,19 @@
+Question 1: Explain your design choices for the tool schemas (e.g., `search_courses`). How did you decide which parameters to include and what the return structure should be to make them most useful for an LLM?
+
+Answer: I made the department filter optional in search_courses to allow both broad keyword searches and targeted department-specific queries, matching how students naturally explore catalogs. The return structure includes only course_code, title, and credits - the essential fields an LLM needs to present options without overwhelming context. For get_prerequisites, I return course_code and title of each prerequisite so the LLM can explain requirements without additional lookups. The prerequisite graph tool returns nodes and edges as an adjacency list, which is both machine-readable for graph algorithms and human-readable for LLM explanations.
+
+Question 2: Describe your database schema. Why did you structure the tables and relationships in this way? What trade-offs did you consider?
+
+Answer: I used four normalized tables: departments, instructors, courses, and a prerequisites junction table for the many-to-many self-referential relationship on courses. This structure avoids data duplication while supporting queries like "all courses by department" and "full prerequisite chains." The trade-off is that deep prerequisite traversals require recursive queries, which I handled with NetworkX in the application layer rather than recursive SQL. I made instructor_id nullable on courses to handle courses without assigned instructors, and used foreign keys for referential integrity.
+
+Question 3: The quality of the descriptions for tools and resources is critical for an LLM to use them effectively. How did you approach writing these descriptions to maximize their utility?
+
+Answer: I wrote descriptions to answer three questions: what the tool does, when to use it, and what it returns. For search_courses, I specified it searches title, description, and course_code fields so the LLM knows fuzzy matching works. For get_prerequisite_graph, I explicitly mentioned "transitive prerequisites" and "adjacency list" so the LLM understands it returns the full chain, not just direct prerequisites. Resource descriptions include the URI format and example content structure. The prompt template description explains the required parameters and output format.
+
+Question 4: How does your MCP server handle invalid inputs or situations where data is not found (e.g., a non-existent course code)? Describe your error handling strategy.
+
+Answer: Each tool returns a union type of either the success schema or an ErrorResponse with an "error" string field. For non-existent courses, get_prerequisites and get_prerequisite_graph return {"error": "Course not found"}. For lookup_instructor with no match, it returns {"error": "Instructor not found"}. The search_courses tool returns an empty array for no matches rather than an error, since no results is a valid outcome. Database connection errors propagate as exceptions which the MCP framework handles. All tools use try/finally to ensure connections close.
+
+Question 5: This task used a simple SQLite database. If this were a production system for a large university, what changes would you make to the architecture (data storage, caching, API design)?
+
+Answer: I would migrate to PostgreSQL for concurrent access, connection pooling, and advanced indexing on search fields. Add a Redis cache layer for frequently accessed resources like course_descriptions and department_directory. Implement read replicas for query scaling. Add API authentication and rate limiting. Use a background job queue for re-seeding or bulk updates. Add full-text search (PostgreSQL tsvector or Elasticsearch) for better course discovery. Implement database migrations with Alembic. Add structured logging, metrics (Prometheus), and distributed tracing for observability.
